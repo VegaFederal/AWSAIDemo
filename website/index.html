@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS AI Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #inputForm {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        textarea {
+            height: 100px;
+            padding: 10px;
+        }
+        button {
+            padding: 10px;
+            background-color: #ff9900;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #ff8800;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>AWS AI Demo</h1>
+    <div id="inputForm">
+        <textarea id="userInput" placeholder="Enter your text here..."></textarea>
+        <button onclick="generateResponse()">Generate Response</button>
+    </div>
+    <div id="response"></div>
+
+    <script>
+        async function generateResponse() {
+            const userInput = document.getElementById('userInput').value;
+            const responseDiv = document.getElementById('response');
+            const button = document.querySelector('button');
+            const form = document.getElementById('inputForm');
+
+            if (!userInput.trim()) {
+                alert('Please enter some text');
+                return;
+            }
+
+            // Add loading state
+            form.classList.add('loading');
+            button.disabled = true;
+            responseDiv.textContent = 'Generating response...';
+            console.log("UserInput = " + userInput);
+            try {
+                // Get the API URL from CloudFormation outputs
+                fetch('/dev/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: userInput
+                    })
+                })
+                .then(response => {
+                    console.log("1. " + response.status);
+                    console.log("1.5 Response object:  " + response)
+                    console.log("1.75 Response json: " + response.json())
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    responseDiv.textContent = response.json();
+                    return response.json();
+                })
+                .then(data => console.log('2. ' + data))
+                .catch(error => console.error('3. Error:', error));
+            } catch (e) {
+                console.error('4. exception: ', error);
+            }
+        }
+    </script>
+</body>
+</html>
