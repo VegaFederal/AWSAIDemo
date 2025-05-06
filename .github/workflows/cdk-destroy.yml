@@ -1,13 +1,10 @@
-name: CDK Deploy
+name: CDK Destroy
 
 on:
-  push:
-    branches:
-      - main  # Change this to your main branch name if different (e.g., master)
-  workflow_dispatch:  # Allows manual triggering
+  workflow_dispatch:  # Only triggered manually
 
 jobs:
-  deploy:
+  destroy:
     runs-on: ubuntu-latest
     
     steps:
@@ -33,8 +30,5 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
           
-      - name: Bootstrap CDK
-        run: npx cdk bootstrap
-          
-      - name: Deploy with CDK
-        run: npx cdk deploy --all --require-approval never
+      - name: Destroy CDK Stack
+        run: npx cdk destroy --all --force
