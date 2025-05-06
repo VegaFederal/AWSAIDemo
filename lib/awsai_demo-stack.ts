@@ -70,6 +70,7 @@ export class AwsaiDemoStack extends cdk.Stack {
       handler: aiFunction,
       proxy: false,
       deployOptions: {
+        stageName: props.envName,
         dataTraceEnabled: true,
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         tracingEnabled: true,
@@ -125,14 +126,13 @@ export class AwsaiDemoStack extends cdk.Stack {
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL
       },
       additionalBehaviors: {
-          '/prod/generate/content': {
+          [`/${props.envName}/generate/content`]: {
               origin: new origins.RestApiOrigin(api, {originPath: ''}),
               viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.ALLOW_ALL,
               cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
               allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
               originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
               responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS
-
           }
       }
     });

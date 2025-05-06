@@ -88,7 +88,7 @@
     "@aws-cdk/aws-events:requireEventBusPolicySid": true,
     "environments": {
       "dev": {
-        "vpc-id": "vpc-024364939126d2a0a" 
+        "vpc-id": "vpc-0956ba067263f706b" 
       },
       "staging": {
         "vpc-id": "Replace-Me-stage"

@@ -10,89 +10,96 @@
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
+            line-height: 1.6;
         }
-        #inputForm {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        h1 {
+            color: #232f3e;
         }
         textarea {
+            width: 100%;
             height: 100px;
-            padding: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
         }
         button {
-            padding: 10px;
             background-color: #ff9900;
             color: white;
             border: none;
+            padding: 10px 20px;
             cursor: pointer;
+            font-size: 16px;
         }
         button:hover {
-            background-color: #ff8800;
+            background-color: #e88a00;
         }
-        #response {
+        #result {
             margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            min-height: 100px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
             white-space: pre-wrap;
         }
         .loading {
-            opacity: 0.5;
-            pointer-events: none;
+            display: none;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>AWS AI Demo</h1>
-    <div id="inputForm">
-        <textarea id="userInput" placeholder="Enter your text here..."></textarea>
-        <button onclick="generateResponse()">Generate Response</button>
-    </div>
-    <div id="response"></div>
+    <h1>AWS AI Demo with Amazon Bedrock</h1>
+    <p>Enter your prompt below to generate content using Amazon Bedrock:</p>
+    
+    <textarea id="prompt" placeholder="Enter your prompt here..."></textarea>
+    <button onclick="generateContent()">Generate</button>
+    
+    <div class="loading" id="loading">Processing your request...</div>
+    <div id="result"></div>
 
     <script>
-        async function generateResponse() {
-            const userInput = document.getElementById('userInput').value;
-            const responseDiv = document.getElementById('response');
-            const button = document.querySelector('button');
-            const form = document.getElementById('inputForm');
+        // Get the current environment from the URL or default to 'dev'
+        function getEnvironment() {
+            // This is a simple way to detect environment - in production you might want a more robust solution
+            const hostname = window.location.hostname;
+            if (hostname.includes('prod')) return 'prod';
+            if (hostname.includes('staging')) return 'staging';
+            return 'dev'; // Default to dev
+        }
 
-            if (!userInput.trim()) {
-                alert('Please enter some text');
+        async function generateContent() {
+            const promptText = document.getElementById('prompt').value.trim();
+            if (!promptText) {
+                alert('Please enter a prompt');
                 return;
             }
-
-            // Add loading state
-            form.classList.add('loading');
-            button.disabled = true;
-            responseDiv.textContent = 'Generating response...';
-            console.log("UserInput = " + userInput);
+            
+            const resultDiv = document.getElementById('result');
+            const loadingDiv = document.getElementById('loading');
+            
+            resultDiv.textContent = '';
+            loadingDiv.style.display = 'block';
+            
             try {
-                // Get the API URL from CloudFormation outputs
-                fetch('/dev/generate', {
+                const env = getEnvironment();
+                const response = await fetch(`/${env}/generate/content`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        prompt: userInput
-                    })
-                })
-                .then(response => {
-                    console.log("1. " + response.status);
-                    console.log("1.5 Response object:  " + response)
-                    console.log("1.75 Response json: " + response.json())
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    responseDiv.textContent = response.json();
-                    return response.json();
-                })
-                .then(data => console.log('2. ' + data))
-                .catch(error => console.error('3. Error:', error));
-            } catch (e) {
-                console.error('4. exception: ', error);
+                    body: JSON.stringify({ prompt: promptText }),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                resultDiv.textContent = data.response || 'No response received';
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                loadingDiv.style.display = 'none';
             }
         }
     </script>
