@@ -167,7 +167,7 @@ export class AwsaiDemoStack extends cdk.Stack {
 
     // Outputs
     new cdk.CfnOutput(this, 'BucketName', { value: websiteBucket.bucketName, description: 'Website bucket name' });
-    new cdk.CfnOutput(this, 'CloudFrontURL', { value: `https://${distribution.distributionDomainName}` });
+    new cdk.CfnOutput(this, 'CloudFrontURL', { value: `https://${distribution.distributionDomainName}/index.html` });
     new cdk.CfnOutput(this, 'ApiURL', { value: api.url });
   }
   
