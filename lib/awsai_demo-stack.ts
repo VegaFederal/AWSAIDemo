@@ -7,9 +7,17 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { Construct } from 'constructs';
+
+export interface AwsaiDemoStackProps extends cdk.StackProps {
+  envName: string;
+}
 
 export class AwsaiDemoStack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  private vpc?: ec2.IVpc;
+  
+  constructor(scope: Construct, id: string, props: AwsaiDemoStackProps) {
     super(scope, id, props);
 
     // Lambda Role
@@ -22,15 +30,18 @@ export class AwsaiDemoStack extends cdk.Stack {
 
     // Lambda Function
     const aiFunction = new lambda.Function(this, 'AIHandler', {
-      functionName: 'AwsaiDemoStack-AIHandler',
+      functionName: `${props.envName}-AIHandler`,
       runtime: lambda.Runtime.PYTHON_3_9,
       code: lambda.Code.fromAsset('lambda'),
       handler: 'lambdaAiHandler.lambda_handler',
       timeout: cdk.Duration.seconds(30),
       role: lambdaRole,
-      environment: {},
-      retryAttempts: 2
+      retryAttempts: 2,
+      // If VPC is provided, deploy the Lambda in the VPC
+      vpc: this.vpc,
+      vpcSubnets: this.vpc ? { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS } : undefined
     });
+
 
     // Bedrock Permissions
     aiFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -55,31 +66,24 @@ export class AwsaiDemoStack extends cdk.Stack {
     });
 
     // API Gateway
-    const api = new apigateway.RestApi(this, 'AIAPI', {
-      defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: ['GET', 'POST', 'OPTIONS'],
-        allowHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
-        allowCredentials: true
-      },
+    const api = new apigateway.LambdaRestApi(this, 'AWSAiAPI', {
+      handler: aiFunction,
+      proxy: false,
       deployOptions: {
-        stageName: 'dev',
         dataTraceEnabled: true,
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         tracingEnabled: true,
         metricsEnabled: true,
-        accessLogDestination: new apigateway.LogGroupLogDestination(
-          new logs.LogGroup(this, 'ApiGatewayAccessLogs', {
-            retention: logs.RetentionDays.ONE_WEEK
-          })
-        ),
-        accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields()
+        accessLogDestination: new apigateway.LogGroupLogDestination(new logs.LogGroup(this, 'ApiGatewayAccessLogs', {
+          retention: logs.RetentionDays.ONE_WEEK
+        })),
+      accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields()
       },
       cloudWatchRole: true
     });
 
     // API Gateway Resources
-    const generateResource = api.root.addResource('generate');
+    const generateResource = api.root.addResource('generate').addResource('content');
     generateResource.addMethod('POST', new apigateway.LambdaIntegration(aiFunction));
 
     // S3 Website Bucket
@@ -119,15 +123,18 @@ export class AwsaiDemoStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL
-      }
-    });
+      },
+      additionalBehaviors: {
+          '/prod/generate/content': {
+              origin: new origins.RestApiOrigin(api, {originPath: ''}),
+              viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.ALLOW_ALL,
+              cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+              allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+              originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+              responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS
 
-    distribution.addBehavior('/dev/generate', new origins.RestApiOrigin(api), {
-      allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
-      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-      originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
-      viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.ALLOW_ALL,
-      responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS
+          }
+      }
     });
 
     (distribution.node.defaultChild as cdk.CfnResource).applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
@@ -162,5 +169,10 @@ export class AwsaiDemoStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'BucketName', { value: websiteBucket.bucketName, description: 'Website bucket name' });
     new cdk.CfnOutput(this, 'CloudFrontURL', { value: `https://${distribution.distributionDomainName}` });
     new cdk.CfnOutput(this, 'ApiURL', { value: api.url });
+  }
+  
+  // Method to set the VPC after stack initialization
+  public setVpc(vpc: ec2.IVpc): void {
+    this.vpc = vpc;
   }
 }

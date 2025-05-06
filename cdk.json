@@ -85,6 +85,17 @@
     "@aws-cdk/core:enableAdditionalMetadataCollection": true,
     "@aws-cdk/aws-lambda:createNewPoliciesWithAddToRolePolicy": true,
     "@aws-cdk/aws-s3:setUniqueReplicationRoleName": true,
-    "@aws-cdk/aws-events:requireEventBusPolicySid": true
+    "@aws-cdk/aws-events:requireEventBusPolicySid": true,
+    "environments": {
+      "dev": {
+        "vpc-id": "vpc-024364939126d2a0a" 
+      },
+      "staging": {
+        "vpc-id": "Replace-Me-stage"
+      },
+      "prod": {
+        "vpc-id": "Replace-me-prod"
+      }
+    }
   }
 }
