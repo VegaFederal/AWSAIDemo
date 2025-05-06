@@ -28,7 +28,7 @@ export class AwsaiDemoStack extends cdk.Stack {
       ]
     });
 
-    // Lambda Function
+    // Lambda Function 1
     const aiFunction = new lambda.Function(this, 'AIHandler', {
       functionName: `${props.envName}-AIHandler`,
       runtime: lambda.Runtime.PYTHON_3_9,
